@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "571943531270",
+    "project_id": "crudriverpod-c9f81",
+    "storage_bucket": "crudriverpod-c9f81.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:571943531270:android:3d20d8ad2db4ef1bd62487",
+        "android_client_info": {
+          "package_name": "com.cookmate.app.cook_mate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGIg8E_VzNyP0f8A4onKEu-2l76qUekLo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:571943531270:android:a7232463196667fbd62487",
+        "android_client_info": {
+          "package_name": "com.expense.expo_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGIg8E_VzNyP0f8A4onKEu-2l76qUekLo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
