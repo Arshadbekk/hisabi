@@ -66,17 +66,11 @@ flutter run
 
 ## 🎨 Screenshots
 
-Coming Soon
+<p align="center">
+  <img src="https://img.shields.io/badge/Screenshots-Coming%20Soon-FF3131?style=for-the-badge&logo=flutter" alt="Coming Soon" />
+</p>
 
 ---
-
-[//]: # (## 🤝 Contributing)
-
-[//]: # ()
-[//]: # (Contributions are welcome! Please read [CONTRIBUTING.md]&#40;CONTRIBUTING.md&#41; for details.)
-
-[//]: # ()
-[//]: # (---)
 
 ## 📄 License
 
