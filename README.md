@@ -56,10 +56,10 @@ flutter run
 ## 🛠️ Built With
 
 | Technology      | Purpose                             |
-| --------------- | ----------------------------------- |
+|-----------------| ----------------------------------- |
 | Flutter         | Front-end UI                        |
 | Firebase        | Real-time database & authentication |
-| Provider        | State management                    |
+| Get X           | State management                    |
 | Charts\_flutter | Data visualization                  |
 
 ---
