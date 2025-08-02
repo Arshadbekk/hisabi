@@ -1,35 +1,19 @@
 {
-  "flutter": {
-    "platforms": {
-      "android": {
-        "default": {
-          "projectId": "crudriverpod-c9f81",
-          "appId": "1:571943531270:android:a7232463196667fbd62487",
-          "fileOutput": "android/app/google-services.json"
-        }
-      },
-      "dart": {
-        "lib/firebase_options.dart": {
-          "projectId": "crudriverpod-c9f81",
-          "configurations": {
-            "android": "1:571943531270:android:a7232463196667fbd62487",
-            "ios": "1:571943531270:ios:d29c6a8677bd1825d62487",
-            "web": "1:571943531270:web:27a436cdafa20a19d62487"
-          }
-        }
-      }
-    }
-  },
   "hosting": {
-    "public": "public",
+    "public": "build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    "cleanUrls": true,
     "rewrites": [
       {
-        "source": "**",
+        "source": "/privacy",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/terms",
         "destination": "/index.html"
       }
     ]
