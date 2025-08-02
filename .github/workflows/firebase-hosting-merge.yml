@@ -1,8 +1,18 @@
- jobs:
+name: Deploy Flutter Web → Firebase Hosting on merge
+
+# ─────── Define when this workflow runs ───────
+on:
+  push:
+    branches:
+      - main
+
+jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
