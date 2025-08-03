@@ -45,5 +45,33 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+		<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.571943531270-0fvgrgtlsvar7fitih98u85vgccgmhng</string>
+			</array>
+		</dict>
+	</array>
+  <!-- Allow the app to record audio -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>We need your permission to record audio so you can enter transactions by voice.</string>
+
+  <!-- Allow the app to recognize speech -->
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>We need speech recognition to understand your voice commands.</string>
+  <!-- Allow Flutter tools to connect to the debug service over the local network -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>This app needs to communicate with the Flutter tool for debugging.</string>
+
+  <!-- Declare the service types your debug server uses -->
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_dartobservatory._tcp</string>
+    <string>_fluttertools._tcp</string>
+  </array>
 </dict>
 </plist>

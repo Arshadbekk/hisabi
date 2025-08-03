@@ -1,20 +1,23 @@
 {
   "hosting": {
-    "public": "build/web",
+    "public": "public",
+
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
+
     "cleanUrls": true,
+
     "rewrites": [
       {
         "source": "/privacy",
-        "destination": "/index.html"
+        "destination": "/privacy.html"
       },
       {
         "source": "/terms",
-        "destination": "/index.html"
+        "destination": "/terms.html"
       }
     ]
   }

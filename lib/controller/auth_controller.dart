@@ -1,6 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hisabi/services/hive_services.dart';
+import 'package:hisabi/services/sync_services.dart';
+import 'package:intl/intl.dart';
 
 import '../repository/google_signin_repository.dart';
 
@@ -8,13 +13,16 @@ import '../repository/google_signin_repository.dart';
 class AuthController extends GetxController {
   /// Reactive loading flag for UI binding.
   final RxBool isLoading = false.obs;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GetStorage _storage = GetStorage();
 
   /// 1️⃣ Google Sign-In + redirect to registration if user does not exist
   Future<void> signInWithGoogle() async {
     try {
       isLoading.value = true;
       final status = await GoogleSignInRepository.signInWithGoogle();
-
+   // 1) clear guest mode
+      _storage.remove(_GUEST_KEY);
       switch (status) {
         case AuthStatus.successful:
           Get.snackbar('Success', 'Signed in successfully!');
@@ -22,10 +30,10 @@ class AuthController extends GetxController {
           break;
 
         case AuthStatus.userNotFound:
-          Get.snackbar(
-            'Error',
-            'User record not found. Please register first.',
-          );
+          // Get.snackbar(
+          //   'Error',
+          //   'User record not found. Please register first.',
+          // );
           Get.toNamed('/register');
           break;
 
@@ -98,6 +106,7 @@ class AuthController extends GetxController {
           .collection('users')
           .doc(firebaseUser.uid)
           .set(userData);
+      await _promptBackupAndNavigate();
 
       Get.snackbar('Welcome', 'Account created successfully!');
       Get.offAllNamed('/onBoarding');
@@ -106,5 +115,55 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// True if the current user is anonymous
+static const _GUEST_KEY = 'isGuest';
+
+  /// Reactive guest flag
+  RxBool get isGuestMode => (_storage.read(_GUEST_KEY) as bool? ?? false).obs;
+  /// Enter offline‐only guest mode (no Firebase call)
+  Future<void> continueAsGuest() async {
+    _storage.write(_GUEST_KEY, true);
+    Get.offAllNamed('/home');
+  }
+
+  /// Common: Prompt user to sync offline txns, then go to home
+  Future<void> _promptBackupAndNavigate() async {
+    // 1) Check for any offline (guest) transactions
+    final unsynced = HiveService.getUnsyncedTxns();
+    if (unsynced.isNotEmpty) {
+      // 2) Ask permission
+      final shouldSync = await Get.dialog<bool>(
+        AlertDialog(
+          title: const Text('Backup Your Data?'),
+          content: const Text(
+            'We found transactions you added in guest mode. '
+            'Would you like to upload them to your account now?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(result: false),
+              child: const Text('No'),
+            ),
+            ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              child: const Text('Yes'),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+
+      // 3) If they agreed, sync to Firestore
+      if (shouldSync == true) {
+        final monthId = DateFormat('yyyy-MM').format(DateTime.now());
+        await SyncService.syncToCloud(monthId: monthId);
+        Get.snackbar('Success', 'Your guest-mode data has been backed up!');
+      }
+    }
+
+    // 4) Finally navigate to home
+    Get.offAllNamed('/home');
   }
 }

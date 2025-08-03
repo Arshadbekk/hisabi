@@ -1,6 +1,6 @@
 // lib/controller/stats_controller.dart
-import 'package:expo_project/controller/transactions_list_controller.dart';
-import 'package:expo_project/controller/transaxtion_controller.dart';
+import 'package:hisabi/controller/transactions_list_controller.dart';
+import 'package:hisabi/controller/transaxtion_controller.dart';
 import 'package:get/get.dart';
 import '../models/transaction_model.dart';
 import '../models/category_model.dart';

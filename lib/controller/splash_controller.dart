@@ -1,6 +1,6 @@
 // lib/controller/splash_controller.dart
 
-import 'package:expo_project/routes/app_routes.dart';
+import 'package:hisabi/routes/app_routes.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

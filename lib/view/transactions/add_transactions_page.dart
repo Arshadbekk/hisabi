@@ -1,8 +1,9 @@
 // lib/view/transactions/add_transaction_page.dart
 import 'package:currency_picker/currency_picker.dart';
-import 'package:expo_project/constants/app_colors.dart';
+import 'package:hisabi/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:hisabi/controller/auth_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
 
@@ -18,6 +19,9 @@ class AddTransactionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ctrl = Get.put(AddTransactionController());
+        final auth    = Get.find<AuthController>();
+
+    final isGuest = auth.isGuestMode.value;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -67,7 +71,7 @@ class AddTransactionPage extends StatelessWidget {
               const SizedBox(height: 32),
 
               // — Add Button —
-              _buildSubmitButton(ctrl),
+              _buildSubmitButton(ctrl,isGuest),
             ],
           ),
         );
@@ -460,7 +464,7 @@ class AddTransactionPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSubmitButton(AddTransactionController ctrl) {
+  Widget _buildSubmitButton(AddTransactionController ctrl,bool isGuest) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         foregroundColor: Colors.white,
@@ -470,11 +474,23 @@ class AddTransactionPage extends StatelessWidget {
         elevation: 0,
         shadowColor: Colors.transparent,
       ),
-      onPressed: () async {
-        if (_formKey.currentState!.validate()) {
-          _formKey.currentState!.save();
-          await ctrl.addTransaction();
-          // Get.back();
+  onPressed: () async {
+        if (!_formKey.currentState!.validate()) return;
+        _formKey.currentState!.save();
+        try {
+          if (isGuest) {
+            // offline-only save
+            await ctrl.addTransactionToHive();
+            Get.back();
+            Get.snackbar('Saved Locally', 'Your transaction was saved offline.');
+          } else {
+            // goes to Firestore + Hive
+            await ctrl.addTransaction();
+            Get.back();
+            Get.snackbar('Success', 'Transaction added.');
+          }
+        } catch (e) {
+          Get.snackbar('Error', e.toString());
         }
       },
       child:

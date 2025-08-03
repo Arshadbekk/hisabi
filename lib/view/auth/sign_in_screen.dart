@@ -82,7 +82,7 @@ class SignUpScreen extends StatelessWidget {
             children: [
               // Top Image
               SizedBox(
-                height: screenHeight * 0.65,
+                height: screenHeight * 0.6,
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(40),
@@ -135,49 +135,80 @@ class SignUpScreen extends StatelessWidget {
 
                       const SizedBox(height: 40),
 
-                      // Sign-in Button or loader
+                      // Sign-in Button or loader + Guest Login
                       Obx(() {
                         if (authController.isLoading.value) {
                           return const PulsingCircleLoader(size: 56);
                         }
-                        return GestureDetector(
-                          onTap: authController.signInWithGoogle,
-                          child: Container(
-                            width: double.infinity,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.black12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                        return Column(
+                          children: [
+                            // Google Sign-In
+                            GestureDetector(
+                              onTap: authController.signInWithGoogle,
+                              child: Container(
+                                width: double.infinity,
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(color: Colors.black12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/common/google.png',
+                                      height: 24,
+                                      width: 24,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text(
+                                      'Sign in with Google',
+                                      style: TextStyle(
+                                        fontSize: 15.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Image.asset(
-                                  'assets/common/google.png',
-                                  height: 24,
-                                  width: 24,
+
+                            const SizedBox(height: 16),
+
+                            // Guest Login Button
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
-                                const SizedBox(width: 10),
-                                const Text(
-                                  'Sign in with Google',
-                                  style: TextStyle(
-                                    fontSize: 15.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                    letterSpacing: 0.3,
-                                  ),
+                                minimumSize: const Size(double.infinity, 54),
+                              ),
+                              onPressed: () {
+                                authController.continueAsGuest();
+                              },
+
+                              child: const Text(
+                                'Continue as Guest',
+                                style: TextStyle(
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
+                          ],
                         );
                       }),
 
@@ -225,10 +256,13 @@ class SignUpScreen extends StatelessWidget {
             ],
           ),
 
-          // Optional: block touches when loading
+          // Block touches when loading
           Obx(() {
             if (authController.isLoading.value) {
-              return ModalBarrier(dismissible: false, color: Colors.black45);
+              return const ModalBarrier(
+                dismissible: false,
+                color: Colors.black45,
+              );
             }
             return const SizedBox.shrink();
           }),

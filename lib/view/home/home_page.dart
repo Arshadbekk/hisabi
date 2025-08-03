@@ -1,7 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:hisabi/controller/voice_entry_controller.dart';
+import 'package:hisabi/models/txn.dart';
+import 'package:hisabi/services/hive_services.dart';
+import 'package:hisabi/view/home/widgets/features_row.dart';
+import 'package:hisabi/view/home/widgets/guest_txn_item.dart';
+import 'package:hisabi/view/transactions/add_transactions_page.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -30,6 +40,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final AddTransactionController txAddCtrl = Get.put(
     AddTransactionController(),
   );
+  final storage = GetStorage();
+  bool _didShowSwipeHint = false;
+
+  late final bool isGuest;
 
   final chartColors = const [
     Color(0xFF1F1F1F), // Charcoal
@@ -46,88 +60,488 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    hc.refresh();
+    // 1️⃣ Determine guest mode once
+    isGuest = storage.read<bool>('isGuest') ?? false;
+
+    // 2️⃣ Only initialize data listeners if NOT guest
+    if (!isGuest) {
+      hc.refresh();
+      hc.listenToSummary();
+      hc.listenToTransactions();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return isGuest
+        ? _buildGuestView()
+        : Scaffold(
+          backgroundColor: Colors.grey[50],
+          body: Obx(() {
+            final summary = hc.summary.value;
+            if (summary == null) {
+              return _buildShimmerSkeleton(context);
+            }
+            final income = summary.totalIncome;
+            final spent = summary.totalExpense;
+            final allTxs = txc.transactions;
+            final recentTxs = allTxs.take(10).toList();
+            final balance = income - spent;
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: Obx(() {
-        final summary = hc.summary.value;
-        if (summary == null) {
-          return _buildShimmerSkeleton(context);
-        }
-        final income = summary.totalIncome;
-        final spent = summary.totalExpense;
-        final allTxs = txc.transactions;
-        final recentTxs = allTxs.take(10).toList();
-        final balance = income - spent;
-
-        return Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: CustomScrollView(
-            physics: BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildHeader('Financial Overview'),
-                ),
-              ),
-
-              SliverToBoxAdapter(
-                child: _buildSummaryCards(
-                  balance,
-                  spent,
-                  income,
-                  hc.user.value!.currencyCode,
-                ),
-              ),
-              SliverToBoxAdapter(child: const SizedBox(height: 16)),
-              // SliverToBoxAdapter(child: _buildTabs(theme, hc)),
-              SliverToBoxAdapter(child: const SizedBox(height: 10)),
-              SliverToBoxAdapter(
-                child: _buildSummaryCard(
-                  theme,
-                  income,
-                  spent,
-                  hc.user.value!.currencyCode,
-                ),
-              ),
-              SliverToBoxAdapter(child: const SizedBox(height: 24)),
-              SliverToBoxAdapter(child: _buildTransactionsHeader(theme)),
-              SliverToBoxAdapter(child: const SizedBox(height: 8)),
-
-              if (recentTxs.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: Text(
-                      'No transactions yet.',
-                      style: theme.textTheme.bodyLarge,
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CustomScrollView(
+                physics: BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: _buildHeader('Financial Overview'),
                     ),
                   ),
-                )
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate((context, idx) {
-                    final tx = recentTxs[idx];
-                    final isExpense = tx.amount > 0;
 
+                  SliverToBoxAdapter(
+                    child: _buildSummaryCards(
+                      balance,
+                      spent,
+                      income,
+                      hc.user.value!.currencyCode,
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: const SizedBox(height: 16)),
+                  // SliverToBoxAdapter(child: _buildTabs(theme, hc)),
+                  SliverToBoxAdapter(child: const SizedBox(height: 10)),
+                  SliverToBoxAdapter(
+                    child: _buildSummaryCard(
+                      theme,
+                      income,
+                      spent,
+                      hc.user.value!.currencyCode,
+                    ),
+                  ),
+                  SliverToBoxAdapter(child: const SizedBox(height: 24)),
+                  SliverToBoxAdapter(child: _buildTransactionsHeader(theme)),
+                  SliverToBoxAdapter(child: const SizedBox(height: 8)),
+
+                  if (recentTxs.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Text(
+                          'No transactions yet.',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate((context, idx) {
+                        final tx = recentTxs[idx];
+                        final isExpense = tx.amount > 0;
+
+                        final color =
+                            chartColors[tx.categoryId.hashCode.abs() %
+                                chartColors.length];
+                        return _buildTransactionItem(tx, color, context);
+                      }, childCount: recentTxs.length),
+                    ),
+                  SliverToBoxAdapter(child: const SizedBox(height: 15)),
+                ],
+              ),
+            );
+          }),
+
+    
+        );
+  }
+
+  Widget _buildGuestView() {
+    final theme = Theme.of(context);
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+
+    // 1) Get local txns (will be empty for new guest)
+    final localTxns = HiveService.getAllTxns();
+
+    // 2) Compute totals (both zero if no data)
+    final spent = localTxns.fold<double>(0, (sum, t) => sum + t.amount);
+    final income = 0.0;
+    final balance = income - spent;
+
+    // 3) Prepare category breakdown (empty for no data)
+    final Map<String, double> categoryTotals = {};
+    for (final t in localTxns) {
+      categoryTotals[t.categoryId] =
+          (categoryTotals[t.categoryId] ?? 0) + t.amount;
+    }
+
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      backgroundColor: Colors.grey[50],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Get.to(() => AddTransactionPage()),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add),
+      ),
+      body: Padding(
+        padding: EdgeInsets.fromLTRB(16, statusBarHeight + 16, 16, 16),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Greeting
+            SliverToBoxAdapter(
+              child: Text(
+                'Hello, Guest 👋',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.black.withOpacity(0.8),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: const SizedBox(height: 8)),
+            SliverToBoxAdapter(
+              child: Text(
+                "Here's a preview of your dashboard:",
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+            ),
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+
+            // Summary Cards with zeros
+            // Live summary cards
+            ValueListenableBuilder<Box<Txn>>(
+              valueListenable: Hive.box<Txn>('transactions').listenable(),
+              builder: (_, box, __) {
+                final txns = box.values.toList();
+                final spent = txns.fold<double>(0, (sum, t) => sum + t.amount);
+                final income = 0.0;
+                final balance = income - spent;
+                // Read the user’s chosen currency:
+                final code = txAddCtrl.selectedCurrencyCode.value;
+                final sym = txAddCtrl.selectedCurrencySymbol.value;
+
+                return SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 120,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      children: [
+                        _buildSummaryTopCard(
+                          "Balance",
+                          "${balance.toStringAsFixed(txAddCtrl.selectedDecimalDigits.value)} $code",
+                          Icons.account_balance_wallet,
+                          const Color(0xFF16A085),
+                        ),
+                        const SizedBox(width: 16),
+                        _buildSummaryTopCard(
+                          "Spent",
+                          "${spent.toStringAsFixed(txAddCtrl.selectedDecimalDigits.value)} $code",
+                          Icons.trending_down,
+                          const Color(0xFFC0392B),
+                        ),
+                        const SizedBox(width: 16),
+                        _buildSummaryTopCard(
+                          "Income",
+                          "${income.toStringAsFixed(txAddCtrl.selectedDecimalDigits.value)} $code",
+                          Icons.trending_up,
+                          const Color(0xFF27AE60),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+
+            // Pie Chart (placeholder if no data)
+            // Live pie chart + legend
+            ValueListenableBuilder<Box<Txn>>(
+              valueListenable: Hive.box<Txn>('transactions').listenable(),
+              builder: (_, box, __) {
+                // Recompute category totals
+                final Map<String, double> totals = {};
+                for (final t in box.values) {
+                  totals[t.categoryId] = (totals[t.categoryId] ?? 0) + t.amount;
+                }
+
+                return SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: SizedBox(
+                      height: 180,
+                      child:
+                          totals.isEmpty
+                              ? const Center(
+                                child: Text(
+                                  'No spending data yet',
+                                  style: TextStyle(color: Colors.black38),
+                                ),
+                              )
+                              : Row(
+                                children: [
+                                  // Pie chart
+                                  Expanded(
+                                    flex: 2,
+                                    child: PieChart(
+                                      PieChartData(
+                                        centerSpaceRadius: 40,
+                                        sectionsSpace: 4,
+                                        sections:
+                                            totals.entries.map((e) {
+                                              final color =
+                                                  chartColors[e.key.hashCode
+                                                          .abs() %
+                                                      chartColors.length];
+                                              return PieChartSectionData(
+                                                value: e.value,
+                                                color: color,
+                                                radius: 50,
+                                                title: '',
+                                              );
+                                            }).toList(),
+                                      ),
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 16),
+
+                                  // Legend
+                                  Expanded(
+                                    flex: 1,
+                                    child: SingleChildScrollView(
+                                      child: Wrap(
+                                        spacing: 12,
+                                        runSpacing: 8,
+                                        children:
+                                            totals.entries.map((e) {
+                                              final color =
+                                                  chartColors[e.key.hashCode
+                                                          .abs() %
+                                                      chartColors.length];
+                                              final cat = txAddCtrl.categories
+                                                  .firstWhere(
+                                                    (c) => c.id == e.key,
+                                                    orElse:
+                                                        () => CategoryModel(
+                                                          id: e.key,
+                                                          name: e.key,
+                                                          iconName: '',
+                                                        ),
+                                                  );
+                                              return Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Container(
+                                                    width: 12,
+                                                    height: 12,
+                                                    decoration: BoxDecoration(
+                                                      color: color,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    cat.name,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+
+            // Recent Activity header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Recent Activity',
+                  style: theme.textTheme.titleMedium!.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(child: const SizedBox(height: 8)),
+
+            // // Transaction list or empty message
+            // if (localTxns.isEmpty)
+            //   SliverFillRemaining(
+            //     hasScrollBody: false,
+            //     child: Center(
+            //       child: Text(
+            //         'No transactions yet.\nTap + to add one.',
+            //         textAlign: TextAlign.center,
+            //         style: TextStyle(fontSize: 16, color: Colors.black38),
+            //       ),
+            //     ),
+            //   )
+            // else
+            // Replace the old SliverToBoxAdapter+ValueListenableBuilder with this:
+            ValueListenableBuilder<Box<Txn>>(
+              valueListenable: Hive.box<Txn>('transactions').listenable(),
+              builder: (context, box, _) {
+                final localTxns = box.values.toList();
+
+                if (localTxns.isEmpty) {
+                  // Show an empty‐state sliver
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        'No transactions yet.\nTap + to add one.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.black38),
+                      ),
+                    ),
+                  );
+                }
+
+                // Otherwise, show the sliver list of items
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate((context, idx) {
+                    final tx = localTxns[idx];
                     final color =
                         chartColors[tx.categoryId.hashCode.abs() %
                             chartColors.length];
-                    return _buildTransactionItem(tx, color, context);
-                  }, childCount: recentTxs.length),
+
+                    return Slidable(
+                      key: ValueKey(tx.id),
+
+                      // // full-swipe support
+                      // d: DismissiblePane(onDismissed: () {
+                      //   txAddCtrl.deleteTransaction(tx);
+                      // }),
+                      endActionPane: ActionPane(
+                        motion: const ScrollMotion(),
+                        extentRatio: 0.25,
+                        children: [
+                          SlidableAction(
+                            autoClose: true,
+                            onPressed: (_) => txAddCtrl.deleteTransaction(tx),
+                            backgroundColor: Colors.grey.shade50,
+                            foregroundColor: Colors.red,
+                            icon: Icons.delete,
+                            label: 'Delete',
+                          ),
+                        ],
+                      ),
+
+                      // this LayoutBuilder gives us the right context to call Slidable.of()
+                      child: LayoutBuilder(
+                        builder: (innerContext, constraints) {
+                          // only show once, on the very first item
+                          if (!_didShowSwipeHint && idx == 0) {
+                            _didShowSwipeHint = true;
+                            // schedule after build
+                            WidgetsBinding.instance.addPostFrameCallback((
+                              _,
+                            ) async {
+                              final slidable = Slidable.of(innerContext);
+                              // reveal the delete actions
+                              slidable?.openEndActionPane(
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOut,
+                              );
+                              // let it linger so they see it
+                              await Future.delayed(
+                                const Duration(milliseconds: 800),
+                              );
+                              slidable?.close();
+                            });
+                          }
+
+                          return GuestTransactionItem(txn: tx, color: color);
+                        },
+                      ),
+                    );
+                  }, childCount: localTxns.length),
+                );
+              },
+            ), // Sign-in CTA
+            SliverToBoxAdapter(child: const SizedBox(height: 32)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 24.0,
                 ),
-              SliverToBoxAdapter(child: const SizedBox(height: 15)),
-            ],
-          ),
-        );
-      }),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Unlock More Features',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        FeatureRow(
+                          icon: Icons.cloud_upload,
+                          title: 'Cloud Backup',
+                          subtitle: 'Keep your history safe and synced',
+                        ),
+
+                        FeatureRow(
+                          icon: Icons.bar_chart,
+                          title: 'Advanced Analytics',
+                          subtitle: 'Insights on your spending habits',
+                        ),
+
+                        const SizedBox(height: 16),
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: () => Get.toNamed('/signUp'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              minimumSize: const Size(200, 48),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text('Sign In to Unlock'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

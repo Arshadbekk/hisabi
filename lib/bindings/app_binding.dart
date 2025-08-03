@@ -1,9 +1,10 @@
 // lib/bindings/app_bindings.dart
 
-import 'package:expo_project/controller/auth_controller.dart';
-import 'package:expo_project/controller/home_controller.dart';
-import 'package:expo_project/controller/splash_controller.dart';
+import 'package:hisabi/controller/auth_controller.dart';
+import 'package:hisabi/controller/home_controller.dart';
+import 'package:hisabi/controller/splash_controller.dart';
 import 'package:get/get.dart';
+import 'package:hisabi/controller/voice_entry_controller.dart';
 
 import '../controller/on_boarding_controller.dart';
 import '../controller/stats_controller.dart';
@@ -22,6 +23,8 @@ class AppBindings implements Bindings {
     Get.put(HomeController());
     Get.put(SplashController());
     Get.put(OnboardingController());
+    Get.lazyPut<AutoListenController>(()         => AutoListenController(), fenix: true);
+
     // …and any others, e.g.:
     // Get.put(UserController());
     // Get.put(CategoryController());

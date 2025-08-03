@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:currency_picker/currency_picker.dart';
-import 'package:expo_project/controller/home_controller.dart';
+import 'package:hisabi/controller/home_controller.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_multi_formatter/formatters/formatter_utils.dart';
 import 'package:get/get.dart';
+import 'package:hisabi/models/txn.dart';
+import 'package:hisabi/services/hive_services.dart';
 import 'package:intl/intl.dart';
 
 import '../models/category_model.dart';
@@ -193,5 +195,58 @@ class AddTransactionController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// OFFLINE: builds a Txn and writes it into Hive
+  Future<void> addTransactionToHive() async {
+    // 1) parse & validate
+    final clean = toNumericString(
+      amountController.text,
+      allowPeriod: true,
+      mantissaLength: selectedDecimalDigits.value,
+    );
+    final amt = double.tryParse(clean) ?? 0.0;
+    if (amt <= 0) throw Exception('Amount must be > 0');
+    final cat = selectedCat.value;
+    if (cat == null)    throw Exception('Please select a category');
+
+    // 2) format & build model
+    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final formatter = NumberFormat.currency(
+      name: selectedCurrencyCode.value,
+      symbol: selectedCurrencySymbol.value,
+    );
+    final formatted = formatter.format(amt);
+
+    final txn = Txn(
+      id:              id,
+      amount:          amt,
+      formattedAmount: formatted,
+      currencyCode:    selectedCurrencyCode.value,
+      currencySymbol:  selectedCurrencySymbol.value,
+      categoryId:      cat.id,
+      categoryName:    cat.name,
+      description:     titleController.text,
+      paymentType:     paymentType.value.name,
+      date:            selectedDate.value,
+    );
+
+    // 3) save to Hive
+    await HiveService.addTxn(txn);
+
+    // 4) reset form
+    amountController.clear();
+    titleController.clear();
+    selectedCat.value  = null;
+    paymentType.value  = PaymentType.cash;
+    selectedDate.value = DateTime.now();
+  }
+
+   /// Deletes a txn from Hive and, if signed-in, also from Firestore + updates totals.
+  Future<void> deleteTransaction(Txn txn) async {
+    // 1) remove locally
+    await HiveService.deleteTxn(txn.id);
+
+   
   }
 }

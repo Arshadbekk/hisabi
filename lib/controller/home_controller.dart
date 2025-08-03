@@ -54,8 +54,8 @@ class HomeController extends GetxController {
       _monthId = DateFormat('yyyy-MM').format(DateTime.now());
 
       _listenToUser();
-      _listenToSummary();
-      _listenToTransactions();
+      // listenToSummary();
+      // _listenToTransactions();
 
     } else {
       // User signed out
@@ -75,7 +75,7 @@ class HomeController extends GetxController {
     });
   }
 
-  void _listenToSummary() {
+  void listenToSummary() {
     final summaryDoc = _firestore
         .collection('users')
         .doc(_userId)
@@ -133,7 +133,7 @@ class HomeController extends GetxController {
 
 
 
-  void _listenToTransactions() {
+  void listenToTransactions() {
     _txSub = _firestore
         .collection('users')
         .doc(_userId)
@@ -170,8 +170,8 @@ class HomeController extends GetxController {
       _monthId = DateFormat('yyyy-MM').format(DateTime.now());
 
       _listenToUser();
-      _listenToSummary();
-      _listenToTransactions();
+      listenToSummary();
+      listenToTransactions();
     } else {
       // if no user, clear the state:
       user.value = null;

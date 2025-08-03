@@ -1,15 +1,17 @@
 import 'dart:developer';
 
-import 'package:expo_project/view/home/home_page.dart';
-import 'package:expo_project/view/profile/profile_page.dart';
-import 'package:expo_project/view/transactions/add_transactions_page.dart';
-import 'package:expo_project/view/transactions/analytics_page.dart';
-import 'package:expo_project/view/transactions/transactions_page.dart';
+import 'package:hisabi/controller/voice_entry_controller.dart';
+import 'package:hisabi/view/home/home_page.dart';
+import 'package:hisabi/view/profile/profile_page.dart';
+import 'package:hisabi/view/transactions/add_transactions_page.dart';
+import 'package:hisabi/view/transactions/analytics_page.dart';
+import 'package:hisabi/view/transactions/transactions_page.dart';
 import 'package:flutter/material.dart';
 import 'package:floating_bottom_bar/animated_bottom_navigation_bar.dart'
     hide AppColors;
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
+import 'package:hisabi/view/widgets/listening_oveerlay.dart';
 import '../../constants/app_colors.dart';
 
 class MainPage extends StatefulWidget {
@@ -42,16 +44,26 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+      final vc = Get.find<AutoListenController>();
+
     return Scaffold(
       // ─── 1 ─── let your bar float above body
       extendBody: true,
 
-      // ─── BODY ───────────────────────────────────────────────────────────────
-      body: SafeArea(
-        // only pad for the top/notch, _not_ the bottom
-        bottom: false,
-        child: _pages[_currentIndex],
-      ),
+     body: Stack(
+      children: [
+        // 1) your existing content
+        SafeArea(
+          bottom: false,
+          child: _pages[_currentIndex],
+        ),
+
+        // 2) the listening overlay
+        Obx(() => vc.isListening.value
+            ? const ListeningOverlay()
+            : const SizedBox.shrink()),
+      ],
+    ),
 
       // reserve the notch hole under the center icon
       floatingActionButton: const SizedBox(height: 56, width: 56),

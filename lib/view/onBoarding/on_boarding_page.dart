@@ -1,4 +1,4 @@
-import 'package:expo_project/constants/app_colors.dart';
+import 'package:hisabi/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
